@@ -17,8 +17,9 @@
     Thank you Joe for teaching me about this :D
 '''
 
+from more_itertools import padded
 import numpy as np
-from numpy.fft import fft2, ifft2
+from numpy.fft import fftn, ifftn
 
 import matplotlib.pyplot as plot
 
@@ -26,9 +27,9 @@ from PIL import Image, ImageOps
 
 
 
-B = 1.15 # Difference Map Parameter, interpolates between constraints [1]
-IMG_PATH = "img/python.jpg"
-NOISE = 10
+B = 0.9 # Difference Map Parameter, interpolates between constraints [1]
+IMG_PATH = "img/hill.jpg"
+NOISE = 100
 
 
 def image_as_array(path: str) -> np.ndarray:
@@ -92,7 +93,7 @@ def fourier_modulus(image: np.ndarray) -> np.ndarray:
         np.ndarray
             Fourier Modulus of the passed image.
     '''
-    return np.abs(fft2(image))
+    return np.abs(fftn(image))
 
 def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndarray:
     '''
@@ -114,11 +115,11 @@ def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndar
             The image with minimal modification, 
             passing it to fourier_modulus should match the target modulus.
     '''
-    fimage = fft2(image)
+    fimage = fftn(image)
     fimage_modulus = np.abs(fimage)
-    normalised_fimage = fimage/fimage_modulus
-    scaled_fimage = normalised_fimage * target_modulus
-    return np.abs(ifft2(scaled_fimage))
+    fimage /= fimage_modulus
+    fimage *= target_modulus
+    return np.log(np.abs(ifftn(fimage)))
 
 def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
@@ -181,12 +182,13 @@ if __name__ == "__main__":
     padded_image = pad(true_image)
     modulus = fourier_modulus(padded_image)
 
-    modulus = np.clip(modulus + NOISE*np.random.normal(0, 1, modulus.shape), 0, 255)
-    image = np.ones(modulus.shape)
+    image = padded_image #+ NOISE*np.random.normal(0, 1, modulus.shape)
     support = np.pad(np.ones(true_image.shape), ((0, padded_image.shape[0] - true_image.shape[0]), (0, padded_image.shape[1] - true_image.shape[1])), 'constant')
 
-    for _ in range(20):
+    for _ in range(10):
         image = difference_map(image, modulus, support)
 
-    plot.imshow(image)
+    f, axarr = plot.subplots(1, 2)
+    axarr[0].imshow(np.log10(image))
+    axarr[1].imshow(np.log10(modulus))
     plot.show()
