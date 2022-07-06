@@ -1,1 +1,6 @@
 res/*
+
+__pycache__/*
+.pytest_cache/*
+
+settings.json
