@@ -18,16 +18,17 @@
 '''
 
 import numpy as np
-from numpy.fft import fft2
+from numpy.fft import fft2, ifft2
+
+import matplotlib.pyplot as plot
 
 from PIL import Image, ImageOps
 
 
 
-BETA = 0.5 # Difference Map Parameter, interpolates between constraints [1]
-PADDING = 2 # Zero padding on guess, ensures that solution converges properly
-
-IMG_PATH = "img/"
+B = 1.15 # Difference Map Parameter, interpolates between constraints [1]
+IMG_PATH = "img/python.jpg"
+NOISE = 10
 
 
 def image_as_array(path: str) -> np.ndarray:
@@ -49,6 +50,7 @@ def image_as_array(path: str) -> np.ndarray:
     '''
     img = Image.open(path)
     img = ImageOps.grayscale(img)
+    img = np.array(img)
     return img
 
 def pad(image: np.ndarray, scale: int = 1) -> np.ndarray:
@@ -92,6 +94,81 @@ def fourier_modulus(image: np.ndarray) -> np.ndarray:
     '''
     return np.abs(fft2(image))
 
+def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndarray:
+    '''
+        Performs a minimal modification of the passed image to match the expected Fourier modulus.
+        
+        Parameters
+        ----------
+
+        image: np.ndarray
+            The image to perform the minimal modification on.
+        target_modulus: np.ndarray
+            The expected fourier modulus. These are the magnitudes that the
+            pixels are scaled to match.
+
+        Returns
+        -------
+
+        np.ndarray
+            The image with minimal modification, 
+            passing it to fourier_modulus should match the target modulus.
+    '''
+    fimage = fft2(image)
+    fimage_modulus = np.abs(fimage)
+    normalised_fimage = fimage/fimage_modulus
+    scaled_fimage = normalised_fimage * target_modulus
+    return np.abs(ifft2(scaled_fimage))
+
+def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
+    '''
+        Restricts the image to the domain of its support.
+        Also restricts image to have positive values.
+
+        Parameters
+        ----------
+
+        image: np.ndarray
+            The image to constrict the support of.
+        support: np.ndarray
+            Boolean array describing areas of support.
+
+        Returns
+        -------
+
+        np.ndarray
+            The image with only supported areas.
+    '''
+    return np.abs(image * support)
+
+def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
+    '''
+        Executes the difference map described in [1] and [2] upon the image once.
+
+        Parameters
+        ----------
+
+        image: np.ndarray
+            The image to iterate upon.
+        modulus: np.ndarray
+            The fourier modulus the image should be coerced to match.
+        support: np.ndarray
+            The support of the image.
+
+        Returns
+        -------
+
+        np.ndarray
+            The image transformed with one iteration of the difference map.
+    '''
+    p_F = fourier_projection(image, modulus)
+    p_S = support_projection(image, support)
+    y_F = 1/B
+    y_S = -1/B
+    f_F = (1 + y_F) * p_F - y_F
+    f_S = (1 + y_S) * p_S - y_S
+    return image + B*(p_S * f_F - p_F * f_S)
+
 
 
 if __name__ == "__main__":
@@ -100,5 +177,16 @@ if __name__ == "__main__":
     # This loses ALL PHASE INFORMATION
     # So we can't convert the modulus back to the image without sneakiness
     # This also pads the image as discussed in [2]
-    true_image = pad(image_as_array(IMG_PATH), scale = 1)
-    modulus = fourier_modulus(true_image)
+    true_image = image_as_array(IMG_PATH)
+    padded_image = pad(true_image)
+    modulus = fourier_modulus(padded_image)
+
+    modulus = np.clip(modulus + NOISE*np.random.normal(0, 1, modulus.shape), 0, 255)
+    image = np.ones(modulus.shape)
+    support = np.pad(np.ones(true_image.shape), ((0, padded_image.shape[0] - true_image.shape[0]), (0, padded_image.shape[1] - true_image.shape[1])), 'constant')
+
+    for _ in range(20):
+        image = difference_map(image, modulus, support)
+
+    plot.imshow(image)
+    plot.show()
