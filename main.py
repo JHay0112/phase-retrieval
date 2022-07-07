@@ -17,19 +17,20 @@
     Thank you Joe for teaching me about this :D
 '''
 
-from more_itertools import padded
 import numpy as np
-from numpy.fft import fftn, ifftn
+from numpy.fft import fftn, ifftn, fftshift
 
 import matplotlib.pyplot as plot
 
 from PIL import Image, ImageOps
+from skimage import data, color, transform
 
 
 
-B = 0.9 # Difference Map Parameter, interpolates between constraints [1]
+B = 1.15
 IMG_PATH = "img/hill.jpg"
-NOISE = 100
+NOISE = 1
+PAD = 1
 
 
 def image_as_array(path: str) -> np.ndarray:
@@ -52,6 +53,7 @@ def image_as_array(path: str) -> np.ndarray:
     img = Image.open(path)
     img = ImageOps.grayscale(img)
     img = np.array(img)
+    img /= np.max(img)
     return img
 
 def pad(image: np.ndarray, scale: int = 1) -> np.ndarray:
@@ -94,6 +96,7 @@ def fourier_modulus(image: np.ndarray) -> np.ndarray:
             Fourier Modulus of the passed image.
     '''
     return np.abs(fftn(image))
+    
 
 def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndarray:
     '''
@@ -103,7 +106,7 @@ def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndar
         ----------
 
         image: np.ndarray
-            The image to perform the minimal modification on.
+            Image to perform the minimal modification on.
         target_modulus: np.ndarray
             The expected fourier modulus. These are the magnitudes that the
             pixels are scaled to match.
@@ -117,14 +120,12 @@ def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndar
     '''
     fimage = fftn(image)
     fimage_modulus = np.abs(fimage)
-    fimage /= fimage_modulus
-    fimage *= target_modulus
-    return np.log(np.abs(ifftn(fimage)))
+    fimage = (fimage/fimage_modulus) * target_modulus
+    return np.abs(ifftn(image))
 
 def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
         Restricts the image to the domain of its support.
-        Also restricts image to have positive values.
 
         Parameters
         ----------
@@ -162,33 +163,37 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
         np.ndarray
             The image transformed with one iteration of the difference map.
     '''
-    p_F = fourier_projection(image, modulus)
-    p_S = support_projection(image, support)
+    F = fourier_projection(image, modulus)
+    S = support_projection(image, support)
     y_F = 1/B
     y_S = -1/B
-    f_F = (1 + y_F) * p_F - y_F
-    f_S = (1 + y_S) * p_S - y_S
-    return image + B*(p_S * f_F - p_F * f_S)
+    f_F = (1 + y_F) * F - y_F
+    f_S = (1 + y_S) * S - y_S
+    return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
 
 
 
 if __name__ == "__main__":
 
-    # Get the expected result and convert it to a fourier modulus
-    # This loses ALL PHASE INFORMATION
-    # So we can't convert the modulus back to the image without sneakiness
-    # This also pads the image as discussed in [2]
-    true_image = image_as_array(IMG_PATH)
-    padded_image = pad(true_image)
+    true_image = data.camera()
+    true_image = transform.resize(true_image, (64, 64))
+    true_image = true_image/np.max(true_image)
+    padded_image = pad(true_image, PAD)
     modulus = fourier_modulus(padded_image)
+    support = pad(np.ones(true_image.shape), PAD)
 
-    image = padded_image #+ NOISE*np.random.normal(0, 1, modulus.shape)
-    support = np.pad(np.ones(true_image.shape), ((0, padded_image.shape[0] - true_image.shape[0]), (0, padded_image.shape[1] - true_image.shape[1])), 'constant')
+    image = padded_image
 
-    for _ in range(10):
+    for _ in range(50):
         image = difference_map(image, modulus, support)
 
-    f, axarr = plot.subplots(1, 2)
-    axarr[0].imshow(np.log10(image))
-    axarr[1].imshow(np.log10(modulus))
+    y_F = 1/B
+    f_F = (1 + y_F) * fourier_projection(image, modulus) - y_F
+    image = support_projection(image, support)
+
+    f, axarr = plot.subplots(1, 4)
+    axarr[0].imshow(padded_image, cmap='gray')
+    axarr[1].imshow(np.abs(image), cmap='gray')
+    axarr[2].imshow(np.log10(fftshift(modulus)), cmap='gray')
+    axarr[3].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
     plot.show()
