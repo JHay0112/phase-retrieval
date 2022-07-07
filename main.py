@@ -27,10 +27,8 @@ from skimage import data, color, transform
 
 
 
-B = 1.15
+B = 0.9
 IMG_PATH = "img/hill.jpg"
-NOISE = 1
-PAD = 1
 
 
 def image_as_array(path: str) -> np.ndarray:
@@ -52,7 +50,7 @@ def image_as_array(path: str) -> np.ndarray:
     '''
     img = Image.open(path)
     img = ImageOps.grayscale(img)
-    img = np.array(img)
+    img = np.array(img).astype(float)
     img /= np.max(img)
     return img
 
@@ -118,10 +116,10 @@ def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndar
             The image with minimal modification, 
             passing it to fourier_modulus should match the target modulus.
     '''
-    fimage = fftn(image)
+    fimage = fftn(image.copy())
     fimage_modulus = np.abs(fimage)
     fimage = (fimage/fimage_modulus) * target_modulus
-    return np.abs(ifftn(image))
+    return ifftn(fimage)
 
 def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
@@ -141,7 +139,7 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
         np.ndarray
             The image with only supported areas.
     '''
-    return np.abs(image * support)
+    return image * support
 
 def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
@@ -167,33 +165,31 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
     S = support_projection(image, support)
     y_F = 1/B
     y_S = -1/B
-    f_F = (1 + y_F) * F - y_F
-    f_S = (1 + y_S) * S - y_S
+    f_F = (1 + y_F)*F - y_F
+    f_S = (1 + y_S)*S - y_S
     return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
 
 
 
 if __name__ == "__main__":
 
-    true_image = data.camera()
+    true_image = image_as_array(IMG_PATH)
     true_image = transform.resize(true_image, (64, 64))
     true_image = true_image/np.max(true_image)
-    padded_image = pad(true_image, PAD)
+    padded_image = pad(true_image)
     modulus = fourier_modulus(padded_image)
-    support = pad(np.ones(true_image.shape), PAD)
+    support = pad(np.ones(true_image.shape))
 
     image = padded_image
 
-    for _ in range(50):
+    for _ in range(100):
         image = difference_map(image, modulus, support)
 
-    y_F = 1/B
-    f_F = (1 + y_F) * fourier_projection(image, modulus) - y_F
-    image = support_projection(image, support)
+    #image = fourier_projection(image, modulus)
 
-    f, axarr = plot.subplots(1, 4)
-    axarr[0].imshow(padded_image, cmap='gray')
-    axarr[1].imshow(np.abs(image), cmap='gray')
-    axarr[2].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    axarr[3].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    f, axarr = plot.subplots(2, 2)
+    axarr[0, 0].imshow(padded_image, cmap='gray')
+    axarr[1, 0].imshow(image.real, cmap='gray')
+    axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
+    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
     plot.show()
