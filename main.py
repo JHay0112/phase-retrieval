@@ -23,12 +23,14 @@ from numpy.fft import fftn, ifftn, fftshift
 import matplotlib.pyplot as plot
 
 from PIL import Image, ImageOps
-from skimage import data, color, transform
+from skimage import transform
 
 
 
 B = 0.9
 IMG_PATH = "img/hill.jpg"
+NOISE = 1
+
 
 
 def image_as_array(path: str) -> np.ndarray:
@@ -94,7 +96,6 @@ def fourier_modulus(image: np.ndarray) -> np.ndarray:
             Fourier Modulus of the passed image.
     '''
     return np.abs(fftn(image))
-    
 
 def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndarray:
     '''
@@ -165,8 +166,8 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
     S = support_projection(image, support)
     y_F = 1/B
     y_S = -1/B
-    f_F = (1 + y_F)*F - y_F
-    f_S = (1 + y_S)*S - y_S
+    f_F = (1 + y_F)*F - y_F*image
+    f_S = (1 + y_S)*S - y_S*image
     return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
 
 
@@ -180,16 +181,25 @@ if __name__ == "__main__":
     modulus = fourier_modulus(padded_image)
     support = pad(np.ones(true_image.shape))
 
-    image = padded_image
+    image = padded_image + NOISE*np.abs(np.random.normal(0, 1, padded_image.shape))
+    image = support_projection(image, support)
+    guess = image
 
-    for _ in range(100):
+    for _ in range(500):
         image = difference_map(image, modulus, support)
 
-    #image = fourier_projection(image, modulus)
+    image = fourier_projection(image, modulus)
 
-    f, axarr = plot.subplots(2, 2)
+    f, axarr = plot.subplots(3, 2)
     axarr[0, 0].imshow(padded_image, cmap='gray')
-    axarr[1, 0].imshow(image.real, cmap='gray')
+    axarr[1, 0].imshow(guess, cmap='gray')
+    axarr[2, 0].imshow(np.abs(image), cmap='gray')
     axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
+    axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+
+    axarr[0, 0].set_title("Actual Data")
+    axarr[1, 0].set_title("Initial Guess")
+    axarr[2, 0].set_title("Retrieved Data")
+
     plot.show()
