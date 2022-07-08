@@ -28,8 +28,13 @@ from skimage import transform
 
 
 B = 1.15
+Y_F = 1/B
+Y_S = -1/B
+
 IMG_PATH = "img/logo.png"
-NOISE = 1
+NOISE = 0.1
+TARGET_ERROR = 0.2
+MAX_ITERATIONS = 1000
 
 
 
@@ -162,13 +167,33 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
         np.ndarray
             The image transformed with one iteration of the difference map.
     '''
-    F = fourier_projection(image, modulus)
-    S = support_projection(image, support)
-    y_F = 1/B
-    y_S = -1/B
-    f_F = (1 + y_F)*F - y_F*image
-    f_S = (1 + y_S)*S - y_S*image
+    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
+    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
     return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
+
+def error(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> float:
+    '''
+        Approximate error measurement as described in [2].
+
+        Parameters
+        ----------
+
+        image: np.ndarray
+            The estimated imaged.
+        modulus: np.ndarray
+            The fourier modulus the image should be coerced to match.
+        support: np.ndarray
+            The support of the image.
+
+        Returns
+        -------
+
+        float
+            The estimated error of the image.
+    '''
+    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
+    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
+    return np.linalg.norm(support_projection(f_F, support) - fourier_projection(f_S, modulus))
 
 
 
@@ -179,7 +204,7 @@ if __name__ == "__main__":
     true_image = transform.resize(true_image, (64, 64))
     true_image = true_image/np.max(true_image)
     padded_image = pad(true_image)
-    
+
     modulus = fourier_modulus(padded_image)
     support = pad(np.ones(true_image.shape))
 
@@ -189,11 +214,18 @@ if __name__ == "__main__":
     image = support_projection(image, support)
     guess = image.copy()
 
-    for _ in range(500):
+    errors = []
+    last_error = float('inf')
+    i = 0
+
+    while last_error > TARGET_ERROR and i < MAX_ITERATIONS:
         image = difference_map(image, modulus, support)
+        last_error = error(image, modulus, support)
+        errors.append(last_error)
+        i += 1
     image = fourier_projection(image, modulus)
 
-    f, axarr = plot.subplots(3, 2)
+    f, axarr = plot.subplots(4, 2)
 
     # Images
     axarr[0, 0].imshow(padded_image, cmap='gray')
@@ -207,8 +239,13 @@ if __name__ == "__main__":
     axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
     axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
 
+    # Error
+    axarr[3, 0].plot(range(1, i + 1), errors)
+    axarr[3, 1].set_visible(False)
+
     axarr[0, 0].set_title("Actual Data")
     axarr[1, 0].set_title("Initial Guess")
     axarr[2, 0].set_title("Retrieved Data")
+    axarr[3, 0].set_title("Error")
 
     plot.show()
