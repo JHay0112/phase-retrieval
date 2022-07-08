@@ -179,12 +179,15 @@ if __name__ == "__main__":
     true_image = transform.resize(true_image, (64, 64))
     true_image = true_image/np.max(true_image)
     padded_image = pad(true_image)
+    
     modulus = fourier_modulus(padded_image)
     support = pad(np.ones(true_image.shape))
 
+    # Make a noisy guess of the image
+    # No point in making unsupported areas noisy though
     image = np.abs(padded_image + NOISE*np.random.normal(0, 1, padded_image.shape))
     image = support_projection(image, support)
-    guess = image
+    guess = image.copy()
 
     for _ in range(500):
         image = difference_map(image, modulus, support)
