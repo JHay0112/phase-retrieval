@@ -27,8 +27,8 @@ from skimage import transform
 
 
 
-B = 0.9
-IMG_PATH = "img/hill.jpg"
+B = 1.15
+IMG_PATH = "img/logo.png"
 NOISE = 1
 
 
@@ -174,6 +174,7 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
 
 if __name__ == "__main__":
 
+    # Get and pad image
     true_image = image_as_array(IMG_PATH)
     true_image = transform.resize(true_image, (64, 64))
     true_image = true_image/np.max(true_image)
@@ -181,19 +182,24 @@ if __name__ == "__main__":
     modulus = fourier_modulus(padded_image)
     support = pad(np.ones(true_image.shape))
 
-    image = padded_image + NOISE*np.abs(np.random.normal(0, 1, padded_image.shape))
+    image = np.abs(padded_image + NOISE*np.random.normal(0, 1, padded_image.shape))
     image = support_projection(image, support)
     guess = image
 
     for _ in range(500):
         image = difference_map(image, modulus, support)
-
     image = fourier_projection(image, modulus)
 
     f, axarr = plot.subplots(3, 2)
+
+    # Images
     axarr[0, 0].imshow(padded_image, cmap='gray')
     axarr[1, 0].imshow(guess, cmap='gray')
     axarr[2, 0].imshow(np.abs(image), cmap='gray')
+
+    # Fourier Modulus of said images
+    # fftshift is used here to centre the origin of the fourier transform for viewing purposes
+    # log10 is used to reduce the 'direct current' --- high valued centre pixels --- also for view purposes
     axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
     axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
     axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
