@@ -1,4 +1,4 @@
-# Phase Retrieval from Diffraction of Image
+# Phase retrieval from diffracted image
 
 This is used to determine what an object looks like from the measurement of diffraction of a planar wave around the object. This shows up in experiments where X-rays are diffracted around crystals of interest and the diffracted rays measured with CCDs. The measured diffraction corresponds to the Fourier Modulus of the object.
 
