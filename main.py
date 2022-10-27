@@ -25,6 +25,7 @@ import matplotlib.pyplot as plot
 from PIL import Image, ImageOps
 from skimage import transform
 
+from typing import Tuple
 
 
 B = 1.15
@@ -32,8 +33,8 @@ Y_F = 1/B
 Y_S = -1/B
 
 IMG_PATH = "img/logo.png"
-NOISE = 0.1
-TARGET_ERROR = 0.2
+NOISE = 1
+TARGET_ERROR = 0.5
 MAX_ITERATIONS = 1000
 
 
@@ -147,7 +148,7 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
     return image * support
 
-def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
+def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> Tuple[np.ndarray, float]:
     '''
         Executes the difference map described in [1] and [2] upon the image once.
 
@@ -166,35 +167,15 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
 
         np.ndarray
             The image transformed with one iteration of the difference map.
+        float 
+            A measure of the relative error 
     '''
     f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
     f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
-def error(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> float:
-    '''
-        Approximate error measurement as described in [2].
-
-        Parameters
-        ----------
-
-        image: np.ndarray
-            The estimated imaged.
-        modulus: np.ndarray
-            The fourier modulus the image should be coerced to match.
-        support: np.ndarray
-            The support of the image.
-
-        Returns
-        -------
-
-        float
-            The estimated error of the image.
-    '''
-    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
-    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return np.linalg.norm(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
+    f_diff = support_projection(f_F, support) - fourier_projection(f_S, modulus)
+    error = np.linalg.norm(f_diff)
+    image = image + B*(f_diff)
+    return (image, error)
 
 
 if __name__ == "__main__":
@@ -210,42 +191,45 @@ if __name__ == "__main__":
 
     # Make a noisy guess of the image
     # No point in making unsupported areas noisy though
-    image = np.abs(padded_image + NOISE*np.random.normal(0, 1, padded_image.shape))
+    image = np.abs(NOISE*np.random.normal(0, 1, padded_image.shape))
     image = support_projection(image, support)
     guess = image.copy()
 
     errors = []
-    last_error = float('inf')
+    error = float('inf')
     i = 0
 
-    while last_error > TARGET_ERROR and i < MAX_ITERATIONS:
-        image = difference_map(image, modulus, support)
-        last_error = error(image, modulus, support)
-        errors.append(last_error)
+    while error > TARGET_ERROR and i < MAX_ITERATIONS:
+        image, error = difference_map(image, modulus, support)
+        errors.append(error)
         i += 1
     image = fourier_projection(image, modulus)
 
-    f, axarr = plot.subplots(4, 2)
+    f, ax = plot.subplot_mosaic("ABXX;CDXX;EFXX")
 
     # Images
-    axarr[0, 0].imshow(padded_image, cmap='gray')
-    axarr[1, 0].imshow(guess, cmap='gray')
-    axarr[2, 0].imshow(np.abs(image), cmap='gray')
+    ax["A"].imshow(padded_image, cmap='gray')
+    ax["A"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["A"].set_title("Actual Data")
+    ax["C"].imshow(guess, cmap='gray')
+    ax["C"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["C"].set_title("Initial Guess")
+    ax["E"].imshow(np.abs(image), cmap='gray')
+    ax["E"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["E"].set_title("Retrieved Data")
 
     # Fourier Modulus of said images
     # fftshift is used here to centre the origin of the fourier transform for viewing purposes
     # log10 is used to reduce the 'direct current' --- high valued centre pixels --- also for view purposes
-    axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
-    axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    ax["B"].imshow(np.log10(fftshift(modulus)), cmap='gray')
+    ax["B"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["D"].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
+    ax["D"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["F"].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    ax["F"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
 
     # Error
-    axarr[3, 0].plot(range(1, i + 1), errors)
-    axarr[3, 1].set_visible(False)
-
-    axarr[0, 0].set_title("Actual Data")
-    axarr[1, 0].set_title("Initial Guess")
-    axarr[2, 0].set_title("Retrieved Data")
-    axarr[3, 0].set_title("Error")
+    ax["X"].plot(range(1, i + 1), errors)
+    ax["X"].set_title("Approximate Error")
 
     plot.show()
