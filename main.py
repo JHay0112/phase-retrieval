@@ -25,6 +25,7 @@ import matplotlib.pyplot as plot
 from PIL import Image, ImageOps
 from skimage import transform
 
+from typing import Tuple
 
 
 B = 1.15
@@ -33,7 +34,7 @@ Y_S = -1/B
 
 IMG_PATH = "img/logo.png"
 NOISE = 0.1
-TARGET_ERROR = 0.2
+TARGET_ERROR = 0.5
 MAX_ITERATIONS = 1000
 
 
@@ -147,7 +148,7 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
     return image * support
 
-def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
+def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> Tuple[np.ndarray, float]:
     '''
         Executes the difference map described in [1] and [2] upon the image once.
 
@@ -166,35 +167,15 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
 
         np.ndarray
             The image transformed with one iteration of the difference map.
+        float 
+            A measure of the relative error 
     '''
     f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
     f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
-def error(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> float:
-    '''
-        Approximate error measurement as described in [2].
-
-        Parameters
-        ----------
-
-        image: np.ndarray
-            The estimated imaged.
-        modulus: np.ndarray
-            The fourier modulus the image should be coerced to match.
-        support: np.ndarray
-            The support of the image.
-
-        Returns
-        -------
-
-        float
-            The estimated error of the image.
-    '''
-    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
-    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return np.linalg.norm(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
+    f_diff = support_projection(f_F, support) - fourier_projection(f_S, modulus)
+    error = np.linalg.norm(f_diff)
+    image = image + B*(f_diff)
+    return (image, error)
 
 
 if __name__ == "__main__":
@@ -215,13 +196,12 @@ if __name__ == "__main__":
     guess = image.copy()
 
     errors = []
-    last_error = float('inf')
+    error = float('inf')
     i = 0
 
-    while last_error > TARGET_ERROR and i < MAX_ITERATIONS:
-        image = difference_map(image, modulus, support)
-        last_error = error(image, modulus, support)
-        errors.append(last_error)
+    while error > TARGET_ERROR and i < MAX_ITERATIONS:
+        image, error = difference_map(image, modulus, support)
+        errors.append(error)
         i += 1
     image = fourier_projection(image, modulus)
 
