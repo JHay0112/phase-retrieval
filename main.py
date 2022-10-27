@@ -205,27 +205,31 @@ if __name__ == "__main__":
         i += 1
     image = fourier_projection(image, modulus)
 
-    f, ax = plot.subplots(3, 2)
+    f, ax = plot.subplot_mosaic("ABXX;CDXX;EFXX")
 
     # Images
-    ax[0, 0].imshow(padded_image, cmap='gray')
-    ax[1, 0].imshow(guess, cmap='gray')
-    ax[2, 0].imshow(np.abs(image), cmap='gray')
+    ax["A"].imshow(padded_image, cmap='gray')
+    ax["A"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["A"].set_title("Actual Data")
+    ax["C"].imshow(guess, cmap='gray')
+    ax["C"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["C"].set_title("Initial Guess")
+    ax["E"].imshow(np.abs(image), cmap='gray')
+    ax["E"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["E"].set_title("Retrieved Data")
 
     # Fourier Modulus of said images
     # fftshift is used here to centre the origin of the fourier transform for viewing purposes
     # log10 is used to reduce the 'direct current' --- high valued centre pixels --- also for view purposes
-    ax[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    ax[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
-    ax[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
-
-    ax[0, 0].set_title("Actual Data")
-    ax[1, 0].set_title("Initial Guess")
-    ax[2, 0].set_title("Retrieved Data")
+    ax["B"].imshow(np.log10(fftshift(modulus)), cmap='gray')
+    ax["B"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["D"].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
+    ax["D"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["F"].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    ax["F"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
 
     # Error
-    f, ax = plot.subplots()
-
-    ax.plot(range(1, i + 1), errors)
+    ax["X"].plot(range(1, i + 1), errors)
+    ax["X"].set_title("Approximate Error")
 
     plot.show()
