@@ -18,7 +18,7 @@
 '''
 
 import numpy as np
-from numpy.fft import fftn, ifftn, fftshift
+from numpy.fft import fftn, ifftn, fftshift, ifftshift
 
 import matplotlib.pyplot as plot
 
@@ -27,14 +27,12 @@ from skimage import transform
 
 
 
-B = 1.15
+B = 0.5
 Y_F = 1/B
 Y_S = -1/B
 
-IMG_PATH = "img/logo.png"
-NOISE = 0.1
-TARGET_ERROR = 0.2
-MAX_ITERATIONS = 1000
+IMG_PATH = "img/duck.jpg"
+SIDE = 100
 
 
 
@@ -145,7 +143,9 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
         np.ndarray
             The image with only supported areas.
     '''
-    return image * support
+    image = image/np.abs(image)
+    image *= support
+    return image
 
 def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
@@ -199,53 +199,45 @@ def error(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> float:
 
 if __name__ == "__main__":
 
-    # Get and pad image
-    true_image = image_as_array(IMG_PATH)
-    true_image = transform.resize(true_image, (64, 64))
-    true_image = true_image/np.max(true_image)
-    padded_image = pad(true_image)
-
-    modulus = fourier_modulus(padded_image)
-    support = pad(np.ones(true_image.shape))
-
-    # Make a noisy guess of the image
-    # No point in making unsupported areas noisy though
-    image = np.abs(padded_image + NOISE*np.random.normal(0, 1, padded_image.shape))
-    image = support_projection(image, support)
+    modulus = fftshift(np.abs(image_as_array(IMG_PATH)))
+    modulus = transform.resize(modulus, (2*SIDE, 2*SIDE))
+    support = pad(np.ones((SIDE, SIDE)))
+    image = np.abs(ifftn(modulus))
+    #image = np.abs(np.random.normal(0, 1, modulus.shape))
     guess = image.copy()
-
     errors = []
-    last_error = float('inf')
-    i = 0
 
-    while last_error > TARGET_ERROR and i < MAX_ITERATIONS:
+    for i in range(100):
         image = difference_map(image, modulus, support)
-        last_error = error(image, modulus, support)
-        errors.append(last_error)
-        i += 1
-    image = fourier_projection(image, modulus)
+        errors.append(np.linalg.norm(modulus - fftshift(image)))
+    image = support_projection(image, support)
 
-    f, axarr = plot.subplots(4, 2)
+    f, axarr = plot.subplots(3, 2)
+
+    phase = np.angle(image)
+    phase[np.abs(phase) < 1e-10] = 0
+
+    output = np.angle(phase)
+    output /= np.pi
+    output *= 255
+    output = output.astype(np.uint8)
+    output = Image.fromarray(output[:SIDE, :SIDE])
+    output.save('cropped.bmp')
 
     # Images
-    axarr[0, 0].imshow(padded_image, cmap='gray')
-    axarr[1, 0].imshow(guess, cmap='gray')
-    axarr[2, 0].imshow(np.abs(image), cmap='gray')
+    axarr[0, 0].imshow(guess, cmap='gray')
+    axarr[0, 0].set_title("Starting Guess")
+    phase_plot = axarr[1, 0].imshow(np.angle(phase), cmap='gray')
+    axarr[1, 0].set_title("Final Estimate")
+    # Modulus
+    axarr[0, 1].imshow(fftshift(modulus), cmap='gray')
+    axarr[0, 1].set_title("Fourier Modulus")
+    axarr[1, 1].imshow(np.abs(fftshift(fftn(image))), cmap='gray')
+    axarr[1, 1].set_title("Final Modulus")
 
-    # Fourier Modulus of said images
-    # fftshift is used here to centre the origin of the fourier transform for viewing purposes
-    # log10 is used to reduce the 'direct current' --- high valued centre pixels --- also for view purposes
-    axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
-    axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    f.colorbar(phase_plot, ax = axarr[1, 0])
 
     # Error
-    axarr[3, 0].plot(range(1, i + 1), errors)
-    axarr[3, 1].set_visible(False)
-
-    axarr[0, 0].set_title("Actual Data")
-    axarr[1, 0].set_title("Initial Guess")
-    axarr[2, 0].set_title("Retrieved Data")
-    axarr[3, 0].set_title("Error")
+    axarr[2, 0].plot(range(i + 1), errors)
 
     plot.show()
