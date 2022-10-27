@@ -6,6 +6,8 @@ This is used to determine what an object looks like from the measurement of diff
 
 This specific example takes a known image and computes its Fourier modulus (the diffraction of the image). It then produces a noisy 'guess' of what the image may look like and iteratively applies a difference map to the guess --- arriving at an approximation of the original image. 
 
+![Example plot](https://github.com/JHay0112/phase_retrieval/blob/librify/img/bad-guess-plot.png?raw=true)
+
 Based on the following
 
 [1] V. Elser, I. Rankenburg and P. Thibault, "Searching with Iterated Maps," 
