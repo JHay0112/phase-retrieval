@@ -33,7 +33,7 @@ Y_F = 1/B
 Y_S = -1/B
 
 IMG_PATH = "img/logo.png"
-NOISE = 0.1
+NOISE = 1
 TARGET_ERROR = 0.5
 MAX_ITERATIONS = 1000
 
@@ -191,7 +191,7 @@ if __name__ == "__main__":
 
     # Make a noisy guess of the image
     # No point in making unsupported areas noisy though
-    image = np.abs(padded_image + NOISE*np.random.normal(0, 1, padded_image.shape))
+    image = np.abs(NOISE*np.random.normal(0, 1, padded_image.shape))
     image = support_projection(image, support)
     guess = image.copy()
 
@@ -205,27 +205,27 @@ if __name__ == "__main__":
         i += 1
     image = fourier_projection(image, modulus)
 
-    f, axarr = plot.subplots(4, 2)
+    f, ax = plot.subplots(3, 2)
 
     # Images
-    axarr[0, 0].imshow(padded_image, cmap='gray')
-    axarr[1, 0].imshow(guess, cmap='gray')
-    axarr[2, 0].imshow(np.abs(image), cmap='gray')
+    ax[0, 0].imshow(padded_image, cmap='gray')
+    ax[1, 0].imshow(guess, cmap='gray')
+    ax[2, 0].imshow(np.abs(image), cmap='gray')
 
     # Fourier Modulus of said images
     # fftshift is used here to centre the origin of the fourier transform for viewing purposes
     # log10 is used to reduce the 'direct current' --- high valued centre pixels --- also for view purposes
-    axarr[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
-    axarr[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
-    axarr[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+    ax[0, 1].imshow(np.log10(fftshift(modulus)), cmap='gray')
+    ax[1, 1].imshow(np.log10(fftshift(fourier_modulus(guess))), cmap='gray')
+    ax[2, 1].imshow(np.log10(fftshift(fourier_modulus(image))), cmap='gray')
+
+    ax[0, 0].set_title("Actual Data")
+    ax[1, 0].set_title("Initial Guess")
+    ax[2, 0].set_title("Retrieved Data")
 
     # Error
-    axarr[3, 0].plot(range(1, i + 1), errors)
-    axarr[3, 1].set_visible(False)
+    f, ax = plot.subplots()
 
-    axarr[0, 0].set_title("Actual Data")
-    axarr[1, 0].set_title("Initial Guess")
-    axarr[2, 0].set_title("Retrieved Data")
-    axarr[3, 0].set_title("Error")
+    ax.plot(range(1, i + 1), errors)
 
     plot.show()
