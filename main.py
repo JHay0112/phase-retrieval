@@ -193,7 +193,7 @@ if __name__ == "__main__":
         errors.append(error)
     image = support_projection(image, support)
 
-    f, axarr = plot.subplots(3, 2)
+    f, ax = plot.subplot_mosaic("ABXX;CDXX")
 
     phase = np.angle(image)
     phase[np.abs(phase) < 1e-10] = 0
@@ -206,19 +206,23 @@ if __name__ == "__main__":
     output.save('cropped.bmp')
 
     # Images
-    axarr[0, 0].imshow(guess, cmap='gray')
-    axarr[0, 0].set_title("Starting Guess")
-    phase_plot = axarr[1, 0].imshow(np.angle(phase), cmap='gray')
-    axarr[1, 0].set_title("Final Estimate")
+    ax["A"].imshow(guess, cmap='gray')
+    ax["A"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["A"].set_title("Starting Guess")
+    phase_plot = ax["C"].imshow(np.angle(phase[:SIDE, :SIDE]), cmap='gray')
+    ax["C"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["C"].set_title("Final Estimate (Phase)")
     # Modulus
-    axarr[0, 1].imshow(fftshift(modulus), cmap='gray')
-    axarr[0, 1].set_title("Fourier Modulus")
-    axarr[1, 1].imshow(np.abs(fftshift(fftn(image))), cmap='gray')
-    axarr[1, 1].set_title("Final Modulus")
+    ax["B"].imshow(fftshift(modulus), cmap='gray')
+    ax["B"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["B"].set_title("Fourier Modulus")
+    ax["D"].imshow(np.abs(fftshift(fftn(image))), cmap='gray')
+    ax["D"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
+    ax["D"].set_title("Final Modulus")
 
-    f.colorbar(phase_plot, ax = axarr[1, 0])
+    f.colorbar(phase_plot, ax = ax["C"])
 
     # Error
-    axarr[2, 0].plot(range(i + 1), errors)
+    ax["X"].plot(range(i + 1), errors)
 
     plot.show()
