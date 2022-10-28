@@ -215,7 +215,7 @@ if __name__ == "__main__":
     # Modulus
     ax["B"].imshow(fftshift(modulus), cmap='gray')
     ax["B"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
-    ax["B"].set_title("Fourier Modulus")
+    ax["B"].set_title("Target Modulus")
     ax["D"].imshow(np.abs(fftshift(fftn(image))), cmap='gray')
     ax["D"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
     ax["D"].set_title("Final Modulus")
