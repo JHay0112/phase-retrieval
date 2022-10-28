@@ -224,5 +224,6 @@ if __name__ == "__main__":
 
     # Error
     ax["X"].plot(range(i + 1), errors)
+    ax["X"].set_title("Estimated Error")
 
     plot.show()
