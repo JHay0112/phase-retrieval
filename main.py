@@ -32,7 +32,7 @@ B = 0.5
 Y_F = 1/B
 Y_S = -1/B
 
-IMG_PATH = "img/duck.jpg"
+IMG_PATH = "img/logo.png"
 SIDE = 100
 
 
@@ -189,8 +189,8 @@ if __name__ == "__main__":
     errors = []
 
     for i in range(100):
-        image = difference_map(image, modulus, support)
-        errors.append(np.linalg.norm(modulus - fftshift(image)))
+        image, error = difference_map(image, modulus, support)
+        errors.append(error)
     image = support_projection(image, support)
 
     f, axarr = plot.subplots(3, 2)
