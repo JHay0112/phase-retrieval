@@ -25,6 +25,7 @@ import matplotlib.pyplot as plot
 from PIL import Image, ImageOps
 from skimage import transform
 
+from typing import Tuple
 
 
 B = 0.5
@@ -147,7 +148,7 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     image *= support
     return image
 
-def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> np.ndarray:
+def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> Tuple[np.ndarray, float]:
     '''
         Executes the difference map described in [1] and [2] upon the image once.
 
@@ -166,35 +167,15 @@ def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) 
 
         np.ndarray
             The image transformed with one iteration of the difference map.
+        float 
+            A measure of the relative error 
     '''
     f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
     f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return image + B*(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
-def error(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> float:
-    '''
-        Approximate error measurement as described in [2].
-
-        Parameters
-        ----------
-
-        image: np.ndarray
-            The estimated imaged.
-        modulus: np.ndarray
-            The fourier modulus the image should be coerced to match.
-        support: np.ndarray
-            The support of the image.
-
-        Returns
-        -------
-
-        float
-            The estimated error of the image.
-    '''
-    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
-    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    return np.linalg.norm(support_projection(f_F, support) - fourier_projection(f_S, modulus))
-
+    f_diff = support_projection(f_F, support) - fourier_projection(f_S, modulus)
+    error = np.linalg.norm(f_diff)
+    image = image + B*(f_diff)
+    return (image, error)
 
 
 if __name__ == "__main__":
