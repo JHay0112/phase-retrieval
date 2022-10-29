@@ -172,11 +172,10 @@ if __name__ == "__main__":
     guess = image.copy()
 
     errors = []
-    error = float('inf')
 
-    dmap = DifferenceMap(image, lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
+    dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
 
-    for image, error in dmap(BETA):
+    for image, error in dmap(image, BETA):
 
         errors.append(error)
         
