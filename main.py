@@ -21,7 +21,6 @@
     Thank you Joe for teaching me about this :D
 '''
 
-from difflib import Differ
 import numpy as np
 from numpy.fft import fftn, ifftn, fftshift
 
@@ -29,8 +28,6 @@ import matplotlib.pyplot as plot
 
 from PIL import Image, ImageOps
 from skimage import transform
-
-from typing import Tuple
 
 from dm import DifferenceMap
 
