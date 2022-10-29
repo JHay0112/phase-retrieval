@@ -14,9 +14,14 @@
 
     [2] V. Elser, "The Mermin Fixed Point," Foundations of Physics, vol. 33, (11), pp. 1691, 2003.
 
+    discussed in 
+
+    [3] J. Hay, "Phase Retreival", https://jordanhay.com/blog/2022/07/phase-retrieval, 2022.
+
     Thank you Joe for teaching me about this :D
 '''
 
+from difflib import Differ
 import numpy as np
 from numpy.fft import fftn, ifftn, fftshift
 
@@ -27,10 +32,10 @@ from skimage import transform
 
 from typing import Tuple
 
+from dm import DifferenceMap
 
-B = 1.15
-Y_F = 1/B
-Y_S = -1/B
+
+BETA = 1.15
 
 IMG_PATH = "img/logo.png"
 NOISE = 1
@@ -148,35 +153,6 @@ def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
     return image * support
 
-def difference_map(image: np.ndarray, modulus: np.ndarray, support: np.ndarray) -> Tuple[np.ndarray, float]:
-    '''
-        Executes the difference map described in [1] and [2] upon the image once.
-
-        Parameters
-        ----------
-
-        image: np.ndarray
-            The image to iterate upon.
-        modulus: np.ndarray
-            The fourier modulus the image should be coerced to match.
-        support: np.ndarray
-            The support of the image.
-
-        Returns
-        -------
-
-        np.ndarray
-            The image transformed with one iteration of the difference map.
-        float 
-            A measure of the relative error 
-    '''
-    f_F = (1 + Y_F)*fourier_projection(image, modulus) - Y_F*image
-    f_S = (1 + Y_S)*support_projection(image, support) - Y_S*image
-    f_diff = support_projection(f_F, support) - fourier_projection(f_S, modulus)
-    error = np.linalg.norm(f_diff)
-    image = image + B*(f_diff)
-    return (image, error)
-
 
 if __name__ == "__main__":
 
@@ -197,13 +173,19 @@ if __name__ == "__main__":
 
     errors = []
     error = float('inf')
-    i = 0
 
-    while error > TARGET_ERROR and i < MAX_ITERATIONS:
-        image, error = difference_map(image, modulus, support)
+    dmap = DifferenceMap(image, lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
+
+    for image, error in dmap(BETA):
+
         errors.append(error)
-        i += 1
-    image = fourier_projection(image, modulus)
+        
+        if dmap.iterations > MAX_ITERATIONS:
+            break
+        if error <= TARGET_ERROR:
+            break
+
+    image = fourier_projection(dmap.iterand, modulus)
 
     f, ax = plot.subplot_mosaic("ABXX;CDXX;EFXX")
 
@@ -229,7 +211,7 @@ if __name__ == "__main__":
     ax["F"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
 
     # Error
-    ax["X"].plot(range(1, i + 1), errors)
+    ax["X"].plot(range(dmap.iterations + 1), errors)
     ax["X"].set_title("Approximate Error")
 
     plot.show()
