@@ -37,6 +37,7 @@ BETA = 1.15
 IMG_PATH = "img/logo.png"
 NOISE = 1
 TARGET_ERROR = 0.5
+TARGET_CHANGE = 1e-5
 MAX_ITERATIONS = 1000
 
 
@@ -171,15 +172,13 @@ if __name__ == "__main__":
     errors = []
 
     dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
+    dmap.iteration_limit = MAX_ITERATIONS
+    dmap.target_error = TARGET_ERROR
+    dmap.target_change = TARGET_CHANGE
 
     for image, error in dmap(image, BETA):
 
         errors.append(error)
-        
-        if dmap.iterations > MAX_ITERATIONS:
-            break
-        if error <= TARGET_ERROR:
-            break
 
     image = fourier_projection(dmap.iterand, modulus)
 
@@ -207,7 +206,7 @@ if __name__ == "__main__":
     ax["F"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
 
     # Error
-    ax["X"].plot(range(dmap.iterations + 1), errors)
+    ax["X"].plot(range(dmap.iterations), errors)
     ax["X"].set_title("Approximate Error")
 
     plot.show()

@@ -1,5 +1,5 @@
 '''
-    Prototype difference map object.
+    Prototype difference map context manager.
 '''
 
 import numpy as np
@@ -22,10 +22,46 @@ class DifferenceMap:
     '''
     def __init__(self, proj_A: Callable[[Array], Array], proj_B: Callable[[Array], Array]) -> None:
 
+        
         self.iterand = None
+        '''Most recently produced iteration.'''
         self.iterations = 0
+        '''Number of performed iterations.'''
+        self.iteration_limit = None
+        '''Maximum number of iterations to be performed.'''
+
+        self.error = float("inf")
+        '''Approximate error of most recently produced iteration.'''
+        self.target_error = None
+        '''Target for error, iteration halts when error falls below this threshold.'''
+
+        self.change = float("inf")
+        '''Approximate change in error between most recent two iterations.'''
+        self.target_change = None
+        '''Target for change in error, iteration halts when error chance falls below this threshold.'''
+
         self.proj_A = proj_A
         self.proj_B = proj_B
+
+    def __may_step(self) -> bool:
+        '''
+            Determines if the iteration should continue.
+        '''
+
+        if self.iteration_limit is not None:
+            if self.iterations >= self.iteration_limit:
+                return False # Reached iteration limit
+        
+        if self.target_error is not None:
+            if self.error <= self.target_error:
+                return False # Reached target error
+
+        if self.target_change is not None:
+            if self.change <= self.target_change:
+                return False # Reached target change in error
+
+        return True
+
 
     def __call__(self, iterand: Array, beta: float) -> Tuple[Array, float]:
         '''
@@ -43,16 +79,14 @@ class DifferenceMap:
             -------
 
             ```
+            errors = []
             dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
+            self.iteration_limit = 1000
+            self.target_error = 0.5
 
             for image, error in dmap(image, BETA):
-
+                # any additional operations
                 errors.append(error)
-                
-                if dmap.iterations > MAX_ITERATIONS:
-                    break
-                if error <= TARGET_ERROR:
-                    break
             ```
         '''
 
@@ -64,15 +98,19 @@ class DifferenceMap:
         y_A = 1/beta
         y_B = -1/beta
 
-        while True: # Step infinitely
+        while self.__may_step():
 
             # Perform difference map operation
             p_A = (1 + y_A)*self.proj_A(self.iterand) - y_A*self.iterand
             p_B = (1 + y_B)*self.proj_B(self.iterand) - y_B*self.iterand
             p_diff = self.proj_B(p_A) - self.proj_A(p_B)
-            error = np.linalg.norm(p_diff)
+            new_error = np.linalg.norm(p_diff)
+
+            self.change = np.abs(self.error - new_error)
+            self.error = new_error
+
             self.iterand = self.iterand + beta*(p_diff)
 
             self.iterations += 1
 
-            yield self.iterand, error
+            yield self.iterand, self.error
