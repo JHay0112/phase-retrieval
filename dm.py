@@ -3,7 +3,7 @@
 '''
 
 import numpy as np
-from typing import Tuple, Callable, Any
+from typing import Tuple, Callable
 
 Array = np.ndarray
 
@@ -20,7 +20,7 @@ class DifferenceMap:
         proj_B: Callable[[Array], Array]
             A minimal constraint project for constraint B.
     '''
-    def __init__(self, proj_A: Callable[[Array], Array], proj_B: Callable[[Array], Array]):
+    def __init__(self, proj_A: Callable[[Array], Array], proj_B: Callable[[Array], Array]) -> None:
 
         self.iterand = None
         self.iterations = 0
@@ -73,6 +73,6 @@ class DifferenceMap:
             error = np.linalg.norm(p_diff)
             self.iterand = self.iterand + beta*(p_diff)
 
-            # Yield current iterand and approximate error
-            yield self.iterand, error
             self.iterations += 1
+
+            yield self.iterand, error
