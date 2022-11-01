@@ -22,14 +22,14 @@
 '''
 
 import numpy as np
-from numpy.fft import fftn, ifftn, fftshift
+from numpy.fft import fftn, fftshift
 
 import matplotlib.pyplot as plot
 
 from PIL import Image, ImageOps
 from skimage import transform
 
-from dm import DifferenceMap
+from pr import PhaseRetriever
 
 
 BETA = 1.15
@@ -106,30 +106,6 @@ def fourier_modulus(image: np.ndarray) -> np.ndarray:
     '''
     return np.abs(fftn(image))
 
-def fourier_projection(image: np.ndarray, target_modulus: np.ndarray) -> np.ndarray:
-    '''
-        Performs a minimal modification of the passed image to match the expected Fourier modulus.
-        
-        Parameters
-        ----------
-
-        image: np.ndarray
-            Image to perform the minimal modification on.
-        target_modulus: np.ndarray
-            The expected fourier modulus. These are the magnitudes that the
-            pixels are scaled to match.
-
-        Returns
-        -------
-
-        np.ndarray
-            The image with minimal modification, 
-            passing it to fourier_modulus should match the target modulus.
-    '''
-    fimage = fftn(image.copy())
-    fimage_modulus = np.abs(fimage)
-    fimage = (fimage/fimage_modulus) * target_modulus
-    return ifftn(fimage)
 
 def support_projection(image: np.ndarray, support: np.ndarray) -> np.ndarray:
     '''
@@ -163,24 +139,20 @@ if __name__ == "__main__":
     modulus = fourier_modulus(padded_image)
     support = pad(np.ones(true_image.shape))
 
-    # Make a noisy guess of the image
-    # No point in making unsupported areas noisy though
-    image = np.abs(NOISE*np.random.normal(0, 1, padded_image.shape))
-    image = support_projection(image, support)
-    guess = image.copy()
-
     errors = []
 
-    dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
-    dmap.iteration_limit = MAX_ITERATIONS
-    dmap.target_error = TARGET_ERROR
-    dmap.target_change = TARGET_CHANGE
+    pr = PhaseRetriever(modulus, lambda i: support_projection(i, support))
+    pr.iteration_limit = MAX_ITERATIONS
+    pr.target_error = TARGET_ERROR
+    pr.target_change = TARGET_CHANGE
 
-    for image, error in dmap(image, BETA):
+    guess = pr.iterand.copy()
+
+    for image, error in pr(BETA):
 
         errors.append(error)
 
-    image = fourier_projection(dmap.iterand, modulus)
+    image = pr.support_projection(pr.iterand)
 
     f, ax = plot.subplot_mosaic("ABXX;CDXX;EFXX")
 
@@ -206,7 +178,7 @@ if __name__ == "__main__":
     ax["F"].tick_params(bottom = False, labelbottom = False, left = False, labelleft = False)
 
     # Error
-    ax["X"].plot(range(dmap.iterations), errors)
+    ax["X"].plot(range(pr.iterations), errors)
     ax["X"].set_title("Approximate Error")
 
     plot.show()
