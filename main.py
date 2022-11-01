@@ -146,7 +146,7 @@ if __name__ == "__main__":
     pr.target_error = TARGET_ERROR
     pr.target_change = TARGET_CHANGE
 
-    guess = pr.iterand.copy()
+    guess = pr.iterand
 
     for image, error in pr(BETA):
 
