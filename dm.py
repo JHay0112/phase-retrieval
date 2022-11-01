@@ -1,5 +1,9 @@
 '''
-    Prototype difference map context manager.
+    Difference map context manager.
+
+    This is a more general purpose abstraction,
+    it permits many forms of the difference map algorithm.
+    With a supplied fourier and support projection it may be used to perform phase retrieval.
 '''
 
 import numpy as np
@@ -19,6 +23,22 @@ class DifferenceMap:
             A minimal constraint projection for constraint A.
         proj_B: Callable[[Array], Array]
             A minimal constraint project for constraint B.
+
+        Example
+        -------
+
+        ```
+        # Assuming errors, fourier_projection, modulus, support_projection, and support have been defined
+        # This example comes from phase retrieval
+
+        dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
+        self.iteration_limit = 1000  # Set max number of iterations to perform
+        self.target_error = 0.5      # Set a threshold for error where iteration will stop early
+
+        for image, error in dmap(image, BETA):
+            # any additional operations
+            errors.append(error)
+        ```
     '''
     def __init__(self, proj_A: Callable[[Array], Array], proj_B: Callable[[Array], Array]) -> None:
 
@@ -74,20 +94,6 @@ class DifferenceMap:
                 The item that iteration will be performed upon.
             beta: float
                 Difference map beta value.
-
-            Example
-            -------
-
-            ```
-            errors = []
-            dmap = DifferenceMap(lambda i: fourier_projection(i, modulus), lambda i: support_projection(i, support))
-            self.iteration_limit = 1000
-            self.target_error = 0.5
-
-            for image, error in dmap(image, BETA):
-                # any additional operations
-                errors.append(error)
-            ```
         '''
 
         # Reset iterations
