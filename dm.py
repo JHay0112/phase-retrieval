@@ -19,9 +19,9 @@ class DifferenceMap:
         Parameters
         ----------
 
-        proj_A: Callable[[Array], Array]
+        proj_A
             A minimal constraint projection for constraint A.
-        proj_B: Callable[[Array], Array]
+        proj_B
             A minimal constraint project for constraint B.
 
         Example
@@ -90,9 +90,9 @@ class DifferenceMap:
             Parameters
             ----------
             
-            iterand: Array
+            iterand
                 The item that iteration will be performed upon.
-            beta: float
+            beta
                 Difference map beta value.
         '''
 
